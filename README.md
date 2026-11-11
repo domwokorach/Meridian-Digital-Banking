@@ -1,5 +1,7 @@
 # Meridian — Digital Banking Portfolio Application
 
+![Meridian homepage](docs/assets/meridian-homepage-banner.png)
+
 A **fictional, full-stack online banking simulation** built with **React, TypeScript, Java Spring Boot and PostgreSQL**. Meridian demonstrates secure authentication, user-scoped account data, accurate financial arithmetic and idempotent, transactional fund transfers behind a responsive navy-and-blue interface.
 
 > **Important:** Meridian is not a real bank and is not affiliated with any financial institution. All balances, accounts and transfers are fictional. Do not enter real passwords, customer data or payment details. This is a portfolio project, not production financial software.
