@@ -2,7 +2,7 @@
 
 A **fictional, full-stack online banking simulation** built with **React, TypeScript, Java Spring Boot and PostgreSQL**. Meridian demonstrates secure authentication, user-scoped account data, accurate financial arithmetic and idempotent, transactional fund transfers behind a responsive navy-and-blue interface.
 
-> **Important:** Meridian is not a real bank and is not affiliated with Barclays or any financial institution. All balances, accounts and transfers are fictional. Do not enter real passwords, customer data or payment details. This is a portfolio project, not production financial software.
+> **Important:** Meridian is not a real bank and is not affiliated with any financial institution. All balances, accounts and transfers are fictional. Do not enter real passwords, customer data or payment details. This is a portfolio project, not production financial software.
 
 Related documents: [Design.md](Design.md) (UI/UX and architecture) · [RULE.md](RULE.md) (development standards) · [LICENSE.md](LICENSE.md) (MIT)
 
@@ -325,8 +325,6 @@ The repository does not currently include binary screenshots. Static, runnable v
 
 - `previews/home.html` — homepage
 - `previews/dashboard.html` — dashboard
-
-Open them directly in a browser. To add screenshots, capture the running app, store them under `docs/screenshots/` and link them here. Only include screenshots of Meridian itself; do not commit third-party (e.g. Barclays) screenshots or assets.
 
 ## Project structure
 
