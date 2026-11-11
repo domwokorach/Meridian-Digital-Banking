@@ -1,27 +1,12 @@
 {
-  "name": "meridian-digital-bank",
-  "private": true,
+  "name": "digital-banking-application",
   "version": "1.0.0",
-  "type": "module",
+  "description": "A **fictional, full-stack online banking simulation** built with **React, TypeScript, Java Spring Boot, PostgreSQL and Docker**. The dark-navy-and-blue visual direction is inspired by the supplied banking website screenshots, but the branding, UI copy and account data are original.",
+  "license": "ISC",
+  "author": "dominic wokorach olanya",
+  "type": "commonjs",
+  "main": "index.js",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "demo": "vite --host 0.0.0.0 --mode demo",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "test:demo": "node --experimental-strip-types --test scripts/demo.test.mjs"
-  },
-  "dependencies": {
-    "lucide-react": "^0.468.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.6.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.15.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.4.1",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.4"
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }

@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:8080}
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/meridian}
+    username: ${DB_USER:meridian}
+    password: ${DB_PASSWORD:meridian_dev_only}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+app:
+  jwt-secret: ${JWT_SECRET:local-development-only-secret-change-me-before-deployment-1234567890}
+  cors-origin: ${CORS_ORIGIN:http://localhost:5173}
+  seed-demo: ${SEED_DEMO:true}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
