@@ -21,22 +21,3 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-
-## Scope of this license
-
-This MIT License applies **only to the original source code, documentation and
-assets created for the Meridian Digital Banking project**.
-
-It does **not** cover:
-
-- **Barclays** names, trademarks, logos, screenshots, photography, copy or any
-  other proprietary material. Any Barclays screenshots used during design were
-  visual references only. They are owned by their respective rights holders,
-  are not part of this project's licensed work, and are **not included in the
-  distributable application**.
-- Third-party libraries and fonts (for example React, Spring Boot, PostgreSQL,
-  Lucide icons, DM Sans and Manrope), which remain under their own licenses.
-
-Meridian is a fictional bank created for portfolio purposes. It is not
-affiliated with, endorsed by, or connected to Barclays or any real financial
-institution.
