@@ -110,7 +110,9 @@ Implemented:
 - Reduced-motion support.
 - Responsive reflow down to 320px width.
 
-Targets still to be audited *(planned)*: formal contrast verification of every colour pair against WCAG AA (4.5:1 text, 3:1 UI), screen-reader testing of the chart (currently conveyed with `title` attributes and the adjacent numbers), `aria-live` announcements for async status changes, and an automated axe/Lighthouse pass in CI.
+Automated: axe-core checks in the Vitest suite (login, registration, account cards, transaction list, dashboard, transfer) currently report no violations. axe-core cannot evaluate colour contrast in jsdom, so that check is disabled in tests.
+
+Targets still to be audited *(planned)*: formal contrast verification of every colour pair against WCAG AA (4.5:1 text, 3:1 UI), screen-reader testing of the chart (currently conveyed with `title` attributes and the adjacent numbers), `aria-live` announcements for async status changes, and a Lighthouse/axe pass in a real browser in CI.
 
 ## 9. Frontend architecture
 
@@ -196,6 +198,77 @@ users 1───* accounts 1───* transactions
 - **Ledger:** each transaction stores `balance_after`, so history can be audited against the account balance.
 - **Idempotency:** the same `requestId` returns the original result and never moves money twice.
 
-## 15. Future design work
+## 15. Automated testing strategy
 
-Dark mode, payee-management flows, richer charts with accessible data tables, a documented component library and automated visual regression tests are *planned*, not implemented.
+Tests are layered so that most run fast with no infrastructure, and only the tests that genuinely need PostgreSQL use it.
+
+| Layer | Tooling | Scope | Database |
+| --- | --- | --- | --- |
+| Backend unit (`*Test`) | JUnit 5, Mockito | `BankingService` rules, `JwtService`, `JwtFilter`, `AuthController`, DTO validation | None (mocked repositories) |
+| Backend integration (`*IT`) | Spring Boot Test, MockMvc | Full HTTP → security → service → JPA → PostgreSQL, Flyway schema and constraints | Isolated `meridian_test` |
+| Frontend unit/component | Vitest, React Testing Library, jsdom | Pages, components, contexts, `format.ts`, API client | None (API module mocked) |
+| Accessibility | axe-core (vitest-axe) | Forms, cards, lists, dashboard, transfer | None |
+| Browser-demo logic | `node:test` | `lib/demo.ts` data layer | None |
+
+Principles:
+
+- **Test behaviour users and attackers can observe**, for example that customer A receives `404` for customer B's account, rather than internal method calls.
+- **Money tests use exact values.** Backend assertions use `BigDecimal.compareTo`; frontend tests check displayed strings such as `£6,622.69` and that the displayed total equals the sum of the displayed card balances.
+- **Fictional fixtures only.** The numbers £1,065.45, £5,557.24 and £6,622.69 live in test fixtures; production code never contains them. A second dashboard test uses different balances to prove totals are computed.
+- **Hard cases get dedicated tests:** replayed and conflicting idempotency keys, concurrent duplicate requests (money moves once), concurrent over-draw attempts (never goes negative), and rollback after a failure in the middle of a transfer.
+- **Coverage is measured, reported and gated for critical logic.** JaCoCo (≥ 80% lines for the `service` and `auth` packages) and Vitest thresholds (≥ 80% for `format`, `api` and the two context modules) fail the build; overall frontend coverage is reported but not gated.
+- **jsdom limits:** axe-core cannot compute colour contrast in jsdom, so contrast is *not* verified automatically (see section 8).
+
+## 16. Continuous integration (Jenkins)
+
+### Architecture
+
+```text
+GitHub ──push / pull request──► Jenkins (macOS, Homebrew)
+(webhook or periodic scan)        │  Multibranch Pipeline + Jenkinsfile
+                                  ├── Java 21, Maven, Node, npm      (Homebrew)
+                                  ├── PostgreSQL localhost:5432
+                                  │     ├── meridian        development data  ── never touched by CI
+                                  │     └── meridian_test   CI-owned, least-privilege role
+                                  ├── Jenkins Credentials: meridian-test-db  (masked in logs)
+                                  └── publishes: JUnit results, JaCoCo/Cobertura coverage, HTML reports, JAR, frontend build
+                                  ──► commit status on GitHub (via GitHub Branch Source)
+```
+
+CI is **verification only**: it never deploys, never publishes packages and needs no Docker.
+
+### Pipeline workflow
+
+```text
+Checkout ─► Environment Validation ─► Install Dependencies (Maven ∥ npm ci)
+   ─► Backend Unit Tests ─► Backend Integration Tests (PostgreSQL)
+   ─► Frontend Tests (test:demo + Vitest coverage) ─► TypeScript Validation
+   ─► Frontend Build ─► Backend Build (mvn clean package + JAR check) ─► Publish Reports
+```
+
+- **Fail fast, cheap first:** environment and dependency problems surface before any test runs; database-free unit tests run before database tests.
+- **Any required failure fails the build**, but JUnit results and coverage reports are published in each stage's `post { always }` block, and copied to `ci-reports/` before the final `mvn clean` removes `backend/target`.
+- **Triggers:** GitHub webhook (push and pull request) or a periodic scan; manual *Build with Parameters*; `master` and `PR-*` only; PRs are built merged with the target branch, and branches that are also PRs are not built twice. A newer build of the same branch aborts the older one.
+- **Time limits:** 30 minutes overall, 2–10 minutes per stage.
+- **Reproducibility:** `scripts/ci/run-local.sh` runs the same commands locally.
+
+### Integration-test database isolation
+
+| Concern | Design |
+| --- | --- |
+| Separate target | Database `meridian_test`, role `meridian_test` (`NOSUPERUSER NOCREATEDB NOCREATEROLE`), owner of that database only; `PUBLIC` access revoked |
+| Provisioning | `scripts/ci/create-test-db.sh`, create-only and idempotent. It refuses names not ending in `_test` and never drops or alters existing roles or databases |
+| Credentials | Jenkins Credentials (`meridian-test-db`) → environment variables inside the shell step; never in the repository, never echoed. No JWT secret is stored: tests generate a random signing key per run |
+| Guards | Pipeline script and the test base class both refuse a database name that does not end in `_test`. Verified by pointing the tests at `meridian`: refused, data unchanged |
+| Schema | Flyway runs the real migrations against `meridian_test`; `ddl-auto: validate` |
+| Seeding | Disabled (`app.seed-demo: false` in the `test` profile) |
+| Data isolation | Most tests are `@Transactional` and roll back. The few that need real commits (rollback and concurrency) create unique fixtures and delete only their own rows by ID |
+| Determinism | Deterministic fixtures with unique emails and account numbers per test, no reliance on seed data or test order |
+
+### What CI deliberately does not do
+
+It does not run browser end-to-end tests, measure colour contrast, load-test, scan dependencies beyond `npm audit` run manually, or deploy. These are roadmap items.
+
+## 17. Future design work
+
+Dark mode, payee-management flows, richer charts with accessible data tables, a documented component library, automated visual regression tests and a contrast audit in CI are *planned*, not implemented.

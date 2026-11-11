@@ -1,0 +1,11 @@
+# Test profile: used ONLY by automated tests. Never points at the development database.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/meridian_test}
+    username: ${TEST_DB_USER:meridian_test}
+    password: ${TEST_DB_PASSWORD}   # required; supplied by the environment / Jenkins Credentials, never committed
+  flyway:
+    enabled: true
+app:
+  seed-demo: false                  # demo data is never seeded in tests
+  cors-origin: http://localhost:5173

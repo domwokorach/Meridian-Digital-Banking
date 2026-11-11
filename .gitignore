@@ -9,3 +9,6 @@ target/
 .idea/
 *.log
 *.tsbuildinfo
+coverage/
+reports/
+ci-reports/

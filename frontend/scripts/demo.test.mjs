@@ -11,8 +11,8 @@ test('demo credentials grant a simulated banking session', () => {
 test('banking starts with two demo accounts and a coherent current-account ledger', () => {
   const accounts = demo.accounts();
   assert.equal(accounts.length, 2);
-  assert.equal(accounts[0].balance, 8866.45);
-  assert.equal(accounts[1].balance, 12556.24);
+  assert.equal(accounts[0].balance, 1065.45);
+  assert.equal(accounts[1].balance, 5557.24);
   assert.equal(demo.transactions(accounts[0].id)[0].balanceAfter, accounts[0].balance);
 });
 test('transfers move simulated funds, create ledger rows and reject retries', () => {
@@ -20,11 +20,11 @@ test('transfers move simulated funds, create ledger rows and reject retries', ()
   const req = { requestId: crypto.randomUUID(), fromAccountId: from.id, toAccountId: to.id, amount: 50.2, reference: 'Portfolio smoke test' };
   const saved = demo.transfer(req);
   assert.equal(saved.amount, 50.2);
-  assert.equal(demo.accounts()[0].balance, 8816.25);
-  assert.equal(demo.accounts()[1].balance, 12606.44);
+  assert.equal(demo.accounts()[0].balance, 1015.25);
+  assert.equal(demo.accounts()[1].balance, 5607.44);
   assert.match(demo.transactions(from.id)[0].description, /Portfolio smoke test/);
   assert.equal(demo.transfer(req).id, saved.id);
-  assert.equal(demo.accounts()[0].balance, 8816.25);
+  assert.equal(demo.accounts()[0].balance, 1015.25);
 });
 test('overdraft, duplicate account and too-large transfers are rejected', () => {
   const [from, to] = demo.accounts();
@@ -36,5 +36,5 @@ test('statement export contains transaction descriptions and running balances', 
   const text = await demo.statement(account.id, '2020-01-01', new Date().toISOString().slice(0, 10)).text();
   assert.match(text, /Amount \(GBP\)/);
   assert.match(text, /Portfolio smoke test/);
-  assert.match(text, /8816\.25/);
+  assert.match(text, /1015\.25/);
 });

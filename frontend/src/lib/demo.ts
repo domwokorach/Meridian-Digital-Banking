@@ -11,9 +11,9 @@ function seed(user: User = demoUser): DemoData {
   ];
   const values: [string, 'CREDIT' | 'DEBIT', number, number][] = [
     ['Shopping · Studio Supply', 'DEBIT', 126.90, 1], ['Transport · City Rail', 'DEBIT', 38.40, 3],
-    ['Coffee · Brew Collective', 'DEBIT', 9.80, 5], ['Salary · Acme Studio', 'CREDIT', 1500, 8],
+    ['Coffee · Brew Collective', 'DEBIT', 9.80, 5], ['Salary · Acme Studio', 'CREDIT', 1149, 8],
     ['Groceries · Green Market', 'DEBIT', 68.45, 12], ['Rent · Orchard Living', 'DEBIT', 1240, 24],
-    ['Opening demo funds', 'CREDIT', 1049, 45],
+    ['Opening demo funds', 'CREDIT', 1400, 45],
   ];
   let bal = accounts[0].balance;
   const currentTxns = values.map(([description, kind, amount, days], i) => {

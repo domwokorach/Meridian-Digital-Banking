@@ -88,12 +88,13 @@ These rules are **mandatory** for all contributions. "MUST" and "MUST NOT" are s
 
 | Level | Requirement |
 | --- | --- |
-| Unit | Every service rule (transfer success, insufficient funds, same-account, ownership, idempotent replay, limits) has a JUnit test. Money assertions use `compareTo`. |
-| Integration | Repository and migration behaviour against real PostgreSQL (Testcontainers preferred) for anything touching constraints or locking. |
+| Unit | Every service rule (transfer success, insufficient funds, same-account, ownership, idempotent replay, limits) has a JUnit 5 test. Mockito for collaborators. Money assertions use `compareTo`. |
+| Integration | Anything touching constraints, locking, transactions or migrations is tested against real PostgreSQL (`*IT` classes, isolated `meridian_test` database, Section 12). |
 | API | Controller/security tests for auth required, validation errors, `404` on foreign accounts, and `GET /api/accounts` returning only the caller's accounts. |
-| Frontend | Test formatting and totals helpers (`sumMoney`, `money`); verify loading, empty and error states and post-transfer refresh. |
+| Frontend | Vitest + React Testing Library for pages and components: loading, empty, error and success states, form validation, and the money helpers (`sumMoney`, `money`), including post-transfer refresh. |
+| Accessibility | New interactive components get an axe-core check. |
 
-Bug fixes include a regression test. `mvn test` and `npm run build` MUST pass before merging. Never weaken or delete a test to make a build pass.
+Bug fixes include a regression test. **A pull request MUST NOT merge unless `mvn verify` and the frontend checks pass** (Section 12). Never weaken, skip or delete a test to make a build pass.
 
 ## 10. Accessibility and responsive design
 
@@ -114,11 +115,67 @@ Bug fixes include a regression test. `mvn test` and `npm run build` MUST pass be
 5. Reviewers check: correctness, ownership/authorization, money handling, migration safety, tests, accessibility, and documentation updates. At least one approval is required.
 6. **Documentation MUST be updated in the same PR** when behaviour, setup, API, schema or architecture changes: `README.md`, `Design.md`, `RULE.md` as relevant.
 
+## 12. Continuous integration and testing
+
+### Mandatory CI quality checks
+
+Every push to `master` and every pull request MUST pass the Jenkins pipeline (`Jenkinsfile`), which runs, in order: environment validation, dependency install (`npm ci`, Maven), backend unit tests, backend integration tests, frontend tests (`npm run test:demo` and `npm run test:coverage`), TypeScript validation (`npm run typecheck`), frontend build and backend build (`mvn clean package` plus executable-JAR check).
+
+1. A red or unstable build blocks merging. Configure the Jenkins check as a **required status check** on `master`.
+2. Fix the cause. Do not re-run until green, do not mark a stage as allowed to fail, and do not remove a stage to get a pass.
+3. Run the same checks locally before pushing (`scripts/ci/run-local.sh`, or the commands in [README.md](README.md#testing)).
+4. CI is for testing and build verification only. It MUST NOT deploy, publish packages, or modify non-CI databases.
+
+### Pull request testing requirements
+
+- Behaviour changes ship with tests in the same pull request; a PR that changes money, authentication, authorization, transfers or migrations without tests is not approved.
+- Reviewers read the Jenkins **Test Result** and coverage output, not just the green tick.
+- Documentation (`README.md`, `Design.md`, `RULE.md`, `docs/JENKINS.md`) is updated in the same PR when behaviour, setup, schema or the pipeline changes.
+
+### Minimum testing standards
+
+- **Coverage gates (build fails below):** 80% line coverage for the backend `service` and `auth` packages (JaCoCo) and 80% for the frontend `lib/format.ts`, `lib/api.ts`, `context/AuthContext.tsx` and `context/BankContext.tsx` (Vitest). Never lower a threshold to pass a build; add tests instead.
+- Coverage numbers in documentation MUST come from a real run. Never fabricate or round up results.
+- Tests are deterministic: no dependence on test order, wall-clock timing, shared mutable data, or the demo seed.
+- Tests use **fictional fixtures only**; no real personal or financial data.
+- Frontend tests mock the network at `lib/api`; backend unit tests mock repositories; neither calls a real external service.
+- Test code follows the same naming and quality standards as production code and is type-checked (`tsc -b` includes `tests/`).
+
+### Financial transaction test requirements
+
+Any change to transfer, balance, ledger or statement logic MUST keep tests for each of these (they exist today and must not be removed):
+
+- successful transfer: both balances updated exactly, two ledger rows with correct `balance_after`, money conserved (sum before == sum after);
+- insufficient funds, including the one-penny-over case, leaving balances and ledger unchanged;
+- transferring the entire balance leaves exactly £0.00, never negative;
+- amount validation (zero, negative, more than two decimals, above the limit) and same-account rejection;
+- ownership: no reading, statementing, sending from or sending to another customer's account;
+- idempotency: replayed `requestId` returns the original and moves nothing; reuse with different details returns `409`; **concurrent duplicates move money exactly once**;
+- concurrency: parallel transfers can never overdraw an account;
+- atomicity: a failure part-way through rolls back the balance changes, transfer row and ledger rows;
+- database constraints: `balance >= 0`, `amount > 0`, `from <> to`, unique `(user_id, request_id)`, foreign keys;
+- exact arithmetic: `BigDecimal` totals and the frontend `sumMoney` (no floating-point drift), e.g. £1,065.45 + £5,557.24 = £6,622.69;
+- the dashboard total is computed from the API data and equals the sum of the displayed balances.
+
+### Secure CI configuration standards
+
+1. **No secrets in the repository or the Jenkinsfile.** Database credentials live in Jenkins Credentials (`meridian-test-db`), bound with `credentials()`/`withCredentials`, referenced only inside **single-quoted** shell strings so Groovy never interpolates them, and masked in logs. Never `echo` or `set -x` a secret; never pass one on a command line.
+2. **Least privilege.** The CI database role is `NOSUPERUSER NOCREATEDB NOCREATEROLE` and owns only `meridian_test`.
+3. **Isolation.** CI and automated tests MUST only use a database whose name ends in `_test`. The pipeline script and the test base class both enforce this. Never point CI at the development or any production database.
+4. **Create-only provisioning.** Scripts may create the CI role/database if missing. They MUST NOT drop, truncate or alter databases or roles that CI did not create, and no pipeline step may do so.
+5. **Cleanup is scoped.** Tests that commit data delete only the rows they created, by ID.
+6. **Seeding off.** `app.seed-demo=false` in tests and in CI. No demo credentials in CI.
+7. **JWT secrets** for tests are generated randomly per run; no signing key is stored in Jenkins or Git.
+8. **Time limits** on the pipeline and every stage; stale builds of the same branch are aborted.
+9. **Pin and audit tooling.** Use `npm ci` and the committed lockfile; keep `npm audit` at zero known vulnerabilities for the dev toolchain where fixes exist.
+10. **Jenkins hygiene.** Restrict who can edit jobs and credentials, keep plugins updated, and use a token with the minimum GitHub scopes (read contents/metadata/pull requests, write commit statuses).
+
 ## Known gaps
 
 Honest status against these rules (to be closed, not hidden):
 
-- Test coverage is below Section 9 (only transfer-success and insufficient-funds unit tests plus a demo-mode script; no Testcontainers, API-security or frontend component tests).
+- The Jenkins pipeline has been verified by running its commands locally (`scripts/ci/run-local.sh`) but **not yet on a live Jenkins server**; the GitHub webhook and commit-status reporting are untested.
+- Overall frontend coverage is about 72% of lines and is reported, not gated; `lib/demo.ts` is covered by the separate `node:test` suite only. Statements, Settings and parts of the landing page have light tests.
+- There are no browser end-to-end tests, and colour contrast is not verified automatically (axe-core cannot do it in jsdom).
 - JWT is kept in `sessionStorage`; no rate limiting, MFA or audit log.
-- `Design.md` accessibility targets (full contrast audit, live regions) are not yet verified.
-- No CI pipeline enforces `mvn test` / `npm run build`.
+- No automated dependency or secret scanning in CI beyond manual `npm audit`.

@@ -25,10 +25,11 @@ Related documents: [Design.md](Design.md) (UI/UX and architecture) · [RULE.md](
 11. [Database schema](#database-schema)
 12. [Testing](#testing)
 13. [Troubleshooting](#troubleshooting)
-14. [Screenshots](#screenshots)
-15. [Project structure](#project-structure)
-16. [Roadmap](#roadmap)
-17. [License](#license)
+14. [Continuous integration (Jenkins)](#continuous-integration-jenkins)
+15. [Screenshots](#screenshots)
+16. [Project structure](#project-structure)
+17. [Roadmap](#roadmap)
+18. [License](#license)
 
 ---
 
@@ -61,9 +62,11 @@ Objectives:
 | Settings | Implemented — profile and security overview |
 | UI states | Loading, empty (no accounts) and API-error states on the dashboard; success and error states on transfers |
 | Browser-only demo mode | Implemented — localStorage-backed fictional data, no backend required |
+| Automated tests | 45 backend unit + 39 PostgreSQL integration tests, 94 frontend component/logic tests, 5 browser-demo tests, with coverage gates |
+| Continuous integration | Jenkins declarative pipeline (`Jenkinsfile`): test, coverage and build verification on macOS, no Docker. Tested locally; not yet run on a live Jenkins server |
 | Docker Compose | Optional — provided, not required |
 
-Not implemented (see [Roadmap](#roadmap)): external payees, MFA, refresh tokens, rate limiting, audit logging, PDF statements, CI pipeline and a full integration-test suite.
+Not implemented (see [Roadmap](#roadmap)): external payees, MFA, refresh tokens, rate limiting, audit logging, PDF statements, browser end-to-end tests and automated deployment.
 
 ## Technology stack
 
@@ -72,7 +75,9 @@ Not implemented (see [Roadmap](#roadmap)): external payees, MFA, refresh tokens,
 | Frontend | React 19, TypeScript 5 (strict), Vite 6, React Router 7, lucide-react |
 | Backend | Java 21, Spring Boot 3.4.5 (Web, Security, Data JPA, Validation, Actuator), jjwt 0.12.6 |
 | Database | PostgreSQL, Flyway migrations |
+| Testing | JUnit 5, Mockito, Spring Boot Test, JaCoCo (backend); Vitest, React Testing Library, axe-core (frontend) |
 | Build | Maven (backend), npm (frontend) |
+| CI | Jenkins (Declarative Pipeline), GitHub |
 | Optional | Docker and Docker Compose |
 
 ---
@@ -293,17 +298,40 @@ Indexes: `accounts(user_id)`, `transactions(account_id, created_at DESC)`. Migra
 ## Testing
 
 ```bash
-# Backend unit tests
+# Backend unit tests (JUnit 5 + Mockito, no database)
 cd backend && mvn test
 
-# Frontend: type-check and production build
-cd frontend && npm run build
+# Backend unit + integration tests with coverage (needs the isolated PostgreSQL test database, see below)
+cd backend
+export TEST_DB_USER=meridian_test TEST_DB_PASSWORD='the-password-you-chose'
+mvn verify
 
-# Frontend: browser-demo logic tests (Node 22+)
-cd frontend && npm run test:demo
+# Frontend: Vitest + React Testing Library (add :coverage for thresholds and HTML report)
+cd frontend && npm test
+cd frontend && npm run test:coverage
+
+# Frontend: type-check, production build and the original browser-demo logic tests
+cd frontend && npm run typecheck && npm run build && npm run test:demo
 ```
 
-Current coverage is limited: the Java tests cover a successful transfer and an insufficient-funds rejection (`BankingServiceTest`), and the demo test script covers the browser-demo data layer. There are no Testcontainers integration tests, API contract tests or browser end-to-end tests yet — see the roadmap.
+**Integration tests never use the development database.** They run against a separate database `meridian_test` with its own least-privilege role. Create it once (create-only; it never drops or alters anything):
+
+```bash
+TEST_DB_PASSWORD='choose-a-strong-password' scripts/ci/create-test-db.sh
+```
+
+The `test` Spring profile points Flyway and JPA at that database, disables demo seeding, and the tests refuse to start if the database name does not end in `_test`. The password comes only from `TEST_DB_PASSWORD`; it is never committed.
+
+| Suite | Tests | Covers |
+| --- | --- | --- |
+| Backend unit (`*Test`) | 45 | Transfer rules, `BigDecimal` totals, idempotency, ownership, statements, JWT, auth controller, JWT filter, DTO validation |
+| Backend integration (`*IT`) | 39 | Registration/login/JWT over HTTP, access control between customers, transfers, rollback, concurrent duplicate requests, DB constraints, Flyway |
+| Frontend (Vitest) | 94 | Homepage, auth forms, dashboard (loading/error/empty/success), account cards, dynamic totals, history, transfer validation and results, responsive nav, API client, axe accessibility checks |
+| Frontend demo (`test:demo`) | 5 | Browser-only demo data layer |
+
+Coverage gates: **80% line coverage** of the `service` and `auth` backend packages (JaCoCo, fails `mvn verify`) and of the frontend `format`, `api`, `AuthContext` and `BankContext` modules (Vitest thresholds). Last measured: those backend classes 100%; those frontend modules 100% of lines; frontend overall 71.7% lines (reported, not gated). Reports: `backend/target/site/jacoco/index.html`, `frontend/coverage/index.html`.
+
+Not covered yet: browser end-to-end tests (e.g. Playwright), contrast verification, and the statement/settings pages in depth. See the roadmap.
 
 ## Troubleshooting
 
@@ -319,7 +347,73 @@ Current coverage is limited: the Java tests cover a successful transfer and an i
 | UI shows "We couldn't load your banking data" | The API is not running or not reachable at `localhost:8080`; check backend logs and `/actuator/health`, then use **Try again**. |
 | Logged out unexpectedly | Tokens last two hours, and the API rejects tokens signed with a previous `JWT_SECRET`. Log in again. |
 | Balances differ from this README | The seeder only creates the demo user once; an older database keeps its earlier balances. |
+| A CI/integration test says `TEST_DB_PASSWORD is not set` | Export `TEST_DB_USER` and `TEST_DB_PASSWORD` for the `meridian_test` role (see [Testing](#testing)). |
 | Demo mode shows old numbers | Clear `meridian_demo_bank_state_v2` (and older `_v1`) from localStorage. |
+
+## Continuous integration (Jenkins)
+
+A declarative [`Jenkinsfile`](Jenkinsfile) builds and tests every push to `master` and every pull request. It **only tests and builds**: nothing is deployed, and Docker is not needed. Full details: **[docs/JENKINS.md](docs/JENKINS.md)**.
+
+### Pipeline stages
+
+Checkout → Environment Validation → Install Dependencies → Backend Unit Tests → Backend Integration Tests (PostgreSQL) → Frontend Tests → TypeScript Validation → Frontend Build → Backend Build → Publish Reports. A failing required stage fails the build, and test reports are still published.
+
+### Set up Jenkins on macOS
+
+```bash
+brew install jenkins-lts                 # plus openjdk@21 maven node postgresql@15 from the prerequisites
+jenkins-lts --httpPort=8081              # 8080 is used by the Spring Boot API
+```
+
+Open <http://localhost:8081>, unlock with `~/.jenkins/secrets/initialAdminPassword`, install the suggested plugins and add: **GitHub Branch Source**, **Credentials Binding**, **JUnit**, **Timestamper**, and (optional) **Coverage**.
+
+1. **Create the isolated test database once** (create-only, never drops anything, never touches `meridian`):
+
+   ```bash
+   TEST_DB_PASSWORD='choose-a-strong-password' scripts/ci/create-test-db.sh
+   ```
+
+2. **Add Jenkins credentials** (Manage Jenkins → Credentials):
+   - `meridian-test-db`: *Username with password*, user `meridian_test` and the password from step 1.
+   - A GitHub username + personal access token (or GitHub App) for scanning the repository and posting commit statuses.
+
+   No JWT secret is needed in Jenkins: tests generate a random key per run. Never commit these values.
+
+3. **Create a Multibranch Pipeline** job pointing at `https://github.com/domwokorach/Meridian-Digital-Banking`, with *Discover branches* (exclude branches that are also PRs), *Discover pull requests from origin* (merge with target) and the name filter `master|PR-.*`.
+
+4. **GitHub webhook:** add `https://<your-jenkins>/github-webhook/` (events: pushes and pull requests). A Jenkins on `localhost` needs a tunnel such as `smee.io`, `ngrok` or `cloudflared`; otherwise enable the 5-minute periodic scan.
+
+### Run a build manually
+
+- In Jenkins: open the job → **Build with Parameters**.
+- Without Jenkins, with the same commands in the same order:
+
+  ```bash
+  export TEST_DB_USER=meridian_test TEST_DB_PASSWORD='the-password-you-chose'
+  scripts/ci/run-local.sh
+  ```
+
+### Understanding the results
+
+- **Test Result** on a build lists every JUnit result (backend unit, backend integration, frontend). Open a failure for its stack trace.
+- **Coverage** is gated at **80% line coverage** for the critical backend logic (`service` and `auth` packages, JaCoCo) and for the frontend money/API/auth-state modules (Vitest). Overall frontend coverage (about 72% lines at last measurement) is reported but not gated.
+- **Artifacts:** `ci-reports/backend/jacoco/index.html`, `ci-reports/frontend/coverage/index.html`, JUnit XML, the backend JAR and `frontend/dist`.
+
+### Troubleshooting failed pipelines
+
+| Symptom | Fix |
+| --- | --- |
+| `Java 21 is required` | Set the `JAVA_HOME_21` parameter to the Homebrew `openjdk@21` path. |
+| `psql not found` | Set `PG_BIN` to your PostgreSQL `bin` directory (`brew --prefix postgresql@15`). |
+| `Cannot log in to meridian_test` | Run `scripts/ci/create-test-db.sh` and make the `meridian-test-db` credential match its password. |
+| `Refusing to run integration tests` | The test database name must end in `_test`; the development database is never used by CI. |
+| `npm ci` fails | Lockfile out of sync: run `npm install` in `frontend/` and commit `package-lock.json`. |
+| Coverage threshold or JaCoCo rule violated | Add tests; do not lower the thresholds. |
+| PR builds do not start | The webhook cannot reach Jenkins; use a tunnel or wait for the periodic scan. |
+
+More in [docs/JENKINS.md](docs/JENKINS.md#8-troubleshooting).
+
+> **Status:** every pipeline command was run and passed locally (`scripts/ci/run-local.sh`), including deliberate-failure checks. The Jenkinsfile has not yet been run on a live Jenkins server, and the GitHub webhook and commit-status integration are untested.
 
 ## Screenshots
 
@@ -333,6 +427,9 @@ The repository does not currently include binary screenshots. Static, runnable v
 ```text
 meridian-banking/
 ├── README.md  Design.md  RULE.md  LICENSE.md
+├── Jenkinsfile                 # CI pipeline (test + build only)
+├── docs/JENKINS.md             # detailed Jenkins setup and troubleshooting
+├── scripts/ci/                 # create-test-db.sh, validate-environment.sh, run-local.sh
 ├── docker-compose.yml          # optional
 ├── .env.example  .gitignore
 ├── backend/
@@ -346,10 +443,12 @@ meridian-banking/
 │       │   ├── repo/           # Spring Data repositories
 │       │   └── service/        # BankingService (business rules)
 │       ├── main/resources/     # application.yml, db/migration/V1__init.sql
-│       └── test/java/…         # BankingServiceTest
+│       ├── test/java/…         # unit tests (*Test) and PostgreSQL integration tests (*IT, in integration/)
+│       └── test/resources/     # application-test.yml (isolated test profile)
 ├── frontend/
 │   ├── package.json  vite.config.ts  .env.example  .env.demo
-│   ├── scripts/demo.test.mjs
+│   ├── scripts/demo.test.mjs   # node:test browser-demo suite
+│   ├── tests/                  # Vitest + React Testing Library suites, fixtures, setup
 │   └── src/
 │       ├── components/         # AccountCard, AppLayout, TransactionList, Brand, MarketingHeader
 │       ├── context/            # AuthContext, BankContext
@@ -365,7 +464,7 @@ Planned, **not yet implemented**:
 1. **Security:** HttpOnly cookie sessions, CSRF strategy, login throttling, MFA, audit log, secret rotation.
 2. **Banking workflows:** external payees with confirmation, payment lifecycle, categorisation, notifications.
 3. **Ledger:** double-entry ledger, reconciliation, fraud checks.
-4. **Quality:** Testcontainers integration tests, Playwright end-to-end tests, API contract tests, CI/CD, load testing.
+4. **Quality:** Playwright end-to-end tests, API contract tests, higher frontend coverage, verifying the Jenkins pipeline on a live server (webhook and commit statuses), CD, load testing.
 5. **Product:** PDF statements, localisation, account preferences, broader accessibility audit.
 
 
