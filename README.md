@@ -368,10 +368,4 @@ Planned, **not yet implemented**:
 4. **Quality:** Testcontainers integration tests, Playwright end-to-end tests, API contract tests, CI/CD, load testing.
 5. **Product:** PDF statements, localisation, account preferences, broader accessibility audit.
 
-## License
 
-Released under the [MIT License](LICENSE.md) for the **original project code and assets only**.
-
-> **Before publishing:** open `LICENSE.md` and replace the placeholder `[Your Name or GitHub Username]` with your own name or GitHub username. The year is already set to 2026.
-
-The MIT License does **not** cover Barclays trademarks, logos, screenshots or any other third-party material, and no proprietary Barclays assets are included in the distributable application. Third-party dependencies and fonts keep their own licenses.
