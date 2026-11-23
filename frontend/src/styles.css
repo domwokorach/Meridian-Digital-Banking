@@ -948,7 +948,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 }
 .auth-left {
   background:radial-gradient(ellipse at 10% 90%,#0062ad 0%,transparent 56%),linear-gradient(148deg,#111a33 0%,#080f62 100%);
-  padding:36px max(40px,calc((100vw - 1150px)/2));
+  padding:36px clamp(32px,5vw,80px);
   color:#fff;
   display:flex;
   flex-direction:column;
@@ -971,7 +971,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   display:flex;
   align-items:center;
   gap:9px;
-  margin-bottom:42px
+  margin-bottom:42px;
+  white-space:nowrap
 }
 .auth-left>.brand {
   align-self:flex-start
@@ -996,7 +997,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   font-size:clamp(34px,3.3vw,53px);
   line-height:1.19;
   letter-spacing:-.055em;
-  max-width:445px
+  max-width:445px;
+  margin:0 0 20px
 }
 .auth-promo p {
   color:#c1c9e7;

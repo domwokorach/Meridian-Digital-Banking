@@ -18,7 +18,7 @@ describe('AccountCard', () => {
   });
   it('styles savings accounts differently from current accounts', () => {
     const { container } = renderPage(<AccountCard account={savings}/>, { withBank: false });
-    expect(container.querySelector('.account-card')).toHaveClass('account-card-savings');
+    expect(container.querySelector('[data-testid="account-card"]')).toHaveAttribute('data-account-type', 'SAVINGS');
     expect(screen.getByText('£5,557.24')).toBeInTheDocument();
   });
   it('links to the account with an accessible name', () => {
@@ -27,6 +27,6 @@ describe('AccountCard', () => {
   });
   it('supports the compact variant', () => {
     const { container } = renderPage(<AccountCard account={everyday} compact/>, { withBank: false });
-    expect(container.querySelector('.account-card')).toHaveClass('account-card-compact');
+    expect(container.querySelector('[data-testid="account-card"]')).toHaveAttribute('data-compact', 'true');
   });
 });
