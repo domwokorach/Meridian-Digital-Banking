@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -19,46 +19,52 @@ function layout(route = '/app') {
     <Route path="*" element={<LocationProbe/>}/>
   </Routes></AuthProvider></MemoryRouter>);
 }
-const sidebar = () => document.querySelector('.app-sidebar') as HTMLElement;
 
 describe('signed-in layout and responsive navigation', () => {
-  it('shows the user, the navigation links and the page content', () => {
+  it('shows the primary navigation links and the page content', () => {
     layout();
-    expect(screen.getAllByText('Alex Morgan').length).toBeGreaterThan(0);
-    const nav = screen.getByRole('navigation', { name: /your banking/i });
-    for (const name of ['Overview', 'My accounts', 'Move money', 'Statements', 'Settings']) expect(nav).toHaveTextContent(name);
+    const nav = screen.getByRole('navigation', { name: 'Primary' });
+    for (const name of ['Home', 'Payments & Transfers', 'Accounts', 'Cards', 'Products', 'Support']) expect(nav).toHaveTextContent(name);
     expect(screen.getByText('Overview content')).toBeInTheDocument();
   });
   it('marks the current page in the navigation', () => {
     layout();
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveClass('sidebar-link-active');
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Cards' })).not.toHaveAttribute('aria-current');
   });
-  it('opens and closes the mobile menu with labelled buttons', async () => {
+  it('provides search, notifications and a theme toggle with accessible names', () => {
     layout();
-    expect(sidebar()).not.toHaveClass('sidebar-open');
-    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
-    expect(sidebar()).toHaveClass('sidebar-open');
-    await userEvent.click(screen.getAllByRole('button', { name: /close menu/i })[0]);
-    expect(sidebar()).not.toHaveClass('sidebar-open');
+    expect(screen.getAllByRole('button', { name: 'Search' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /notifications, 2 unread/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /switch to light mode/i })).toBeInTheDocument();
   });
-  it('closes the mobile menu from the scrim', async () => {
+  it('defaults to dark mode and toggles to light', async () => {
     layout();
-    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
-    const scrim = document.querySelector('.sidebar-scrim') as HTMLElement;
-    await userEvent.click(scrim);
-    expect(sidebar()).not.toHaveClass('sidebar-open');
+    expect(document.documentElement).toHaveClass('dark');
+    await userEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
+    expect(document.documentElement).not.toHaveClass('dark');
+    expect(localStorage.getItem('meridian_theme')).toBe('light');
   });
-  it('closes the mobile menu after choosing a destination', async () => {
+  it('opens the mobile menu and closes it after choosing a destination', async () => {
     layout();
     await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
-    await userEvent.click(screen.getByRole('link', { name: 'Move money' }));
-    expect(sidebar()).not.toHaveClass('sidebar-open');
+    const mobile = await screen.findByRole('navigation', { name: 'Mobile' });
+    await userEvent.click(screen.getAllByRole('link', { name: 'Payments & Transfers' }).find(l => mobile.contains(l))!);
     expect(screen.getByText('Transfer content')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'Mobile' })).not.toBeInTheDocument());
   });
-  it('signs the user out, clears the session and returns home', async () => {
+  it('closes the mobile menu with Escape', async () => {
     layout();
-    await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    await screen.findByRole('navigation', { name: 'Mobile' });
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'Mobile' })).not.toBeInTheDocument());
+  });
+  it('shows the user in the account menu and signs out, clearing the session', async () => {
+    layout();
+    await userEvent.click(screen.getByRole('button', { name: /account menu/i }));
+    expect(await screen.findByText('Alex Morgan')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('menuitem', { name: /sign out/i }));
     expect(sessionStorage.getItem('meridian_session_v1')).toBeNull();
     expect(screen.getByTestId('location')).toHaveTextContent('/');
   });

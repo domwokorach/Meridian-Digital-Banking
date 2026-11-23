@@ -12,11 +12,10 @@ export function BankProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const refresh = useCallback(async () => {
     if (!session) return;
-    setError('');
     try {
       const a = await api.accounts();
       const tx = await Promise.all(a.map(item => api.transactions(item.id)));
-      setAccounts(a); setTransactions(tx.flat().sort((x, y) => y.createdAt.localeCompare(x.createdAt)));
+      setAccounts(a); setTransactions(tx.flat().sort((x, y) => y.createdAt.localeCompare(x.createdAt))); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load accounts'); }
     finally { setLoading(false); }
   }, [session]);

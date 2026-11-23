@@ -6,7 +6,8 @@ const real = await vi.importActual<typeof import('../src/lib/api')>('../src/lib/
 const { api, saveSession, storedSession } = real;
 
 const ok = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
-const readBlob = (blob: Blob) => new Promise<string>(resolve => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.readAsText(blob); });
+// Response.blob() yields Node's Blob, which jsdom's FileReader rejects, so read it with the Blob API itself.
+const readBlob = (blob: Blob) => blob.text();
 const fetchMock = vi.fn();
 const assign = vi.fn();
 

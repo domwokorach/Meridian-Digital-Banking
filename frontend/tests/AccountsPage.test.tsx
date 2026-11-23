@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import AccountsPage from '../src/pages/AccountsPage';
@@ -24,7 +24,7 @@ describe('accounts page and transaction history', () => {
     mockBank();
     renderPage(<AccountsPage/>, { route: '/app/accounts' });
     await screen.findByRole('heading', { name: 'Everyday account' });
-    await userEvent.click(within(document.querySelector('.account-switcher') as HTMLElement).getByRole('button', { name: 'Rainy day savings' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Rainy day savings', pressed: false }));
     expect(await screen.findByRole('heading', { name: 'Rainy day savings' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(`account=${savings.id}`);
   });
@@ -34,10 +34,10 @@ describe('accounts page and transaction history', () => {
     await screen.findByRole('heading', { name: 'Everyday account' });
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /transaction type/i }), 'CREDIT');
     expect(screen.getByText('Salary · Acme Studio')).toBeInTheDocument();
-    expect(screen.queryByText('Coffee · Brew Collective')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Coffee · Brew Collective')).not.toBeInTheDocument());
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /transaction type/i }), 'DEBIT');
-    expect(screen.getByText('Coffee · Brew Collective')).toBeInTheDocument();
-    expect(screen.queryByText('Salary · Acme Studio')).not.toBeInTheDocument();
+    expect(await screen.findByText('Coffee · Brew Collective')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Salary · Acme Studio')).not.toBeInTheDocument());
   });
   it('searches descriptions case-insensitively and can match nothing', async () => {
     mockBank();
@@ -45,10 +45,10 @@ describe('accounts page and transaction history', () => {
     await screen.findByRole('heading', { name: 'Everyday account' });
     await userEvent.type(screen.getByPlaceholderText('Search transactions'), 'SALARY');
     expect(screen.getByText('Salary · Acme Studio')).toBeInTheDocument();
-    expect(screen.queryByText('Coffee · Brew Collective')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Coffee · Brew Collective')).not.toBeInTheDocument());
     await userEvent.clear(screen.getByPlaceholderText('Search transactions'));
     await userEvent.type(screen.getByPlaceholderText('Search transactions'), 'zzz');
-    expect(screen.getByText('No activity to show')).toBeInTheDocument();
+    expect(await screen.findByText('No activity to show')).toBeInTheDocument();
   });
   it('shows the account details with the exact balance', async () => {
     mockBank();
@@ -60,7 +60,7 @@ describe('accounts page and transaction history', () => {
   it('handles no accounts and ignores an unknown account in the URL', async () => {
     mockBank([], []);
     renderPage(<AccountsPage/>, { route: '/app/accounts' });
-    expect(await screen.findByText('No accounts available.')).toBeInTheDocument();
+    expect(await screen.findByText('No accounts available')).toBeInTheDocument();
   });
   it('falls back to the first account when the id in the URL is unknown', async () => {
     mockBank();

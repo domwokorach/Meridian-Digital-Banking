@@ -1,4 +1,4 @@
-import type { BankAccount, BankTransaction, TransferInput, TransferResult, User } from './types';
+import type { AppNotification, Beneficiary, BankAccount, BankTransaction, DemoCard, Faq, SavingsGoal, TransferInput, TransferResult, User } from './types';
 
 const DATA_KEY = 'meridian_demo_bank_state_v2';
 type DemoData = { user: User; accounts: BankAccount[]; transactions: BankTransaction[]; requests: Record<string, TransferResult> };
@@ -72,4 +72,37 @@ export const demo = {
       .map(t => [esc(t.createdAt), esc(account.name), esc(t.kind), esc(t.description), `${t.kind === 'DEBIT' ? '-' : ''}${t.amount.toFixed(2)}`, t.balanceAfter.toFixed(2)].join(','));
     return new Blob([['Date,Account,Type,Description,Amount (GBP),Balance (GBP)', ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
   },
+};
+
+/** Fictional, clearly synthetic content for screens that have no backend endpoint yet. Never shown as real data. */
+export const demoContent = {
+  cards: (holder: string): DemoCard[] => [
+    { id: 'card-midnight', label: 'Everyday debit', variant: 'midnight', kind: 'DEBIT', last4: '4821', holder, expiry: '09/29', frozen: false, monthlyLimit: 5000, virtual: false },
+    { id: 'card-ocean', label: 'Online shopping', variant: 'ocean', kind: 'DEBIT', last4: '7714', holder, expiry: '03/28', frozen: false, monthlyLimit: 1500, virtual: true },
+    { id: 'card-titanium', label: 'Travel credit', variant: 'titanium', kind: 'CREDIT', last4: '3069', holder, expiry: '11/30', frozen: false, monthlyLimit: 8000, virtual: false },
+    { id: 'card-royal', label: 'Premier credit', variant: 'royal', kind: 'CREDIT', last4: '9152', holder, expiry: '06/30', frozen: true, monthlyLimit: 12000, virtual: false },
+  ] as DemoCard[],
+  goals: [
+    { id: 'goal-holiday', name: 'Summer holiday', target: 2400, share: 0.3, targetDate: '2027-06-01' },
+    { id: 'goal-emergency', name: 'Emergency fund', target: 10000, share: 0.55, targetDate: '2027-12-31' },
+    { id: 'goal-laptop', name: 'New laptop', target: 1800, share: 0.15, targetDate: '2027-03-15' },
+  ] as SavingsGoal[],
+  notifications: ((): AppNotification[] => [
+    { id: 'n1', kind: 'security', title: 'New sign-in detected', body: 'You signed in from a new browser. If this was not you, change your password.', createdAt: stamp(0, 9), read: false },
+    { id: 'n2', kind: 'activity', title: 'Salary received', body: 'A payment from Acme Studio arrived in your Everyday account.', createdAt: stamp(8, 8), read: false },
+    { id: 'n3', kind: 'info', title: 'Statement ready', body: 'Your latest statement is ready to download.', createdAt: stamp(10, 10), read: true },
+    { id: 'n4', kind: 'activity', title: 'Savings interest paid', body: 'Monthly interest was added to your savings.', createdAt: stamp(6, 7), read: true },
+  ])(),
+  beneficiaries: [
+    { id: 'b1', name: 'Jordan Ellis', sortCode: '40-11-22', accountNumber: '51847362' },
+    { id: 'b2', name: 'Orchard Living (Rent)', sortCode: '30-90-12', accountNumber: '90216478' },
+    { id: 'b3', name: 'Priya Natarajan', sortCode: '60-04-18', accountNumber: '33058127' },
+  ] as Beneficiary[],
+  faqs: [
+    { question: 'Is Meridian a real bank?', answer: 'No. Meridian is a fictional portfolio application. No real money, accounts or payment services are provided.' },
+    { question: 'How do I move money between my accounts?', answer: 'Open Payments & Transfers, choose the accounts and an amount, then review and confirm. Both balances update once the server accepts the transfer.' },
+    { question: 'Why are some screens labelled “Demo data”?', answer: 'Cards, savings goals, notifications and payees have no backend endpoint yet, so they use clearly labelled sample content.' },
+    { question: 'Can I download my transactions?', answer: 'Yes. Statements lets you pick an account and a date range and downloads a CSV.' },
+    { question: 'What should I do if I notice something suspicious?', answer: 'Freeze the affected card from Cards, change your password, and raise a request with Support.' },
+  ] as Faq[],
 };

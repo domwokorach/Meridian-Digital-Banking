@@ -1,8 +1,11 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'node:path';
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
     proxy: {
       '/api': {
@@ -18,6 +21,8 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
     css: false,
+    // The dashboard renders charts and animation, which is slow under coverage instrumentation.
+    testTimeout: 20000,
     // JUnit XML is written even when tests fail so Jenkins can always publish results.
     reporters: ['default', 'junit'],
     outputFile: { junit: 'reports/junit.xml' },

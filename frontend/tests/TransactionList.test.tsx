@@ -18,12 +18,12 @@ describe('TransactionList', () => {
   });
   it('marks credits as positive only', () => {
     render(<TransactionList items={fixtureTransactions}/>);
-    expect(screen.getByText('+£1,149.00')).toHaveClass('positive');
-    expect(screen.getByText('−£9.80')).not.toHaveClass('positive');
+    expect(screen.getByText('+£1,149.00')).toHaveClass('text-success');
+    expect(screen.getByText('−£9.80')).not.toHaveClass('text-success');
   });
   it('renders one row per transaction with description and date', () => {
     const { container } = render(<TransactionList items={fixtureTransactions}/>);
-    expect(container.querySelectorAll('.transaction-row')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid="transaction-row"]')).toHaveLength(3);
     expect(screen.getByText('Monthly savings interest')).toBeInTheDocument();
   });
   it('picks an icon for transfers, shopping, transport and anything else', () => {
@@ -36,7 +36,7 @@ describe('TransactionList', () => {
       { ...base, id: '5', kind: 'CREDIT', description: 'Something else' },
     ];
     const { container } = render(<TransactionList items={rows} showAccount/>);
-    expect(container.querySelectorAll('.txn-icon svg')).toHaveLength(5);
+    expect(container.querySelectorAll('[data-testid="transaction-row"] svg')).toHaveLength(5);
     expect(screen.getAllByText(/Account activity/)).toHaveLength(5);
   });
 });

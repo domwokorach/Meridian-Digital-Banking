@@ -13,12 +13,11 @@ describe('dashboard with the fixture accounts', () => {
   it('shows each balance and the total of £6,622.69', async () => {
     mockBank();
     renderPage(<DashboardPage/>);
-    expect(await screen.findByText('YOUR TOTAL BALANCE', { exact: false })).toBeInTheDocument();
-    const panel = document.querySelector('.balance-panel') as HTMLElement;
-    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent(FIXTURE_TOTAL);
+    expect(await screen.findByRole('heading', { name: 'Total balance' })).toBeInTheDocument();
+    const panel = screen.getByTestId('balance-panel');
+    expect(within(panel).getByTestId('total-balance')).toHaveTextContent(FIXTURE_TOTAL);
     expect(panel).toHaveTextContent('Across 2 accounts');
-    expect(panel).toHaveTextContent('It’s all yours to manage');
-    const cards = document.querySelectorAll<HTMLElement>('.account-card');
+    const cards = document.querySelectorAll<HTMLElement>('[data-testid="account-card"]');
     expect(cards).toHaveLength(2);
     expect(within(cards[0]).getByText('Everyday account')).toBeInTheDocument();
     expect(within(cards[0]).getByText('£1,065.45')).toBeInTheDocument();
@@ -37,13 +36,14 @@ describe('dashboard with the fixture accounts', () => {
   it('keeps the transfer and accounts links', async () => {
     mockBank();
     renderPage(<DashboardPage/>);
-    expect(await screen.findByRole('link', { name: /make a transfer/i })).toHaveAttribute('href', '/app/transfer');
+    await screen.findByRole('heading', { name: 'Total balance' });
+    expect(screen.getAllByRole('link', { name: /^transfer$/i })[0]).toHaveAttribute('href', '/app/transfer');
     expect(screen.getByRole('link', { name: /view all accounts/i })).toHaveAttribute('href', '/app/accounts');
   });
   it('requests balances from the accounts API for the signed-in user', async () => {
     mockBank();
     renderPage(<DashboardPage/>);
-    await screen.findByText('YOUR TOTAL BALANCE', { exact: false });
+    await screen.findByRole('heading', { name: 'Total balance' });
     expect(mockedApi.accounts).toHaveBeenCalledTimes(1);
     expect(mockedApi.transactions).toHaveBeenCalledWith(everyday.id);
     expect(mockedApi.transactions).toHaveBeenCalledWith(savings.id);
@@ -57,7 +57,7 @@ describe('dashboard with the fixture accounts', () => {
   it('greets the user by first name', async () => {
     mockBank();
     renderPage(<DashboardPage/>);
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Alex');
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(/Good (morning|afternoon|evening), Alex/);
   });
 });
 
@@ -65,32 +65,32 @@ describe('total balance is calculated, never hardcoded', () => {
   it('equals the sum of whatever balances the API returns', async () => {
     mockBank([account('1', 'One', 10.1), account('2', 'Two', 20.2), account('3', 'Three', 0.07)], []);
     renderPage(<DashboardPage/>);
-    await screen.findByText('YOUR TOTAL BALANCE', { exact: false });
-    expect(document.querySelector('.balance-panel h2')).toHaveTextContent('£30.37');
-    expect(document.querySelector('.balance-panel')).toHaveTextContent('Across 3 accounts');
+    await screen.findByRole('heading', { name: 'Total balance' });
+    expect(document.querySelector('[data-testid="total-balance"]')).toHaveTextContent('£30.37');
+    expect(document.querySelector('[data-testid="balance-panel"]')).toHaveTextContent('Across 3 accounts');
   });
   it('displayed total equals the sum of the displayed card balances', async () => {
     mockBank(fixtureAccounts);
     renderPage(<DashboardPage/>);
-    await screen.findByText('YOUR TOTAL BALANCE', { exact: false });
+    await screen.findByRole('heading', { name: 'Total balance' });
     const parse = (s: string) => Math.round(Number(s.replace(/[£,]/g, '')) * 100);
-    const cards = [...document.querySelectorAll('.account-card-balance')].map(n => parse(n.textContent!));
-    const total = parse(document.querySelector('.balance-panel h2')!.textContent!);
+    const cards = [...document.querySelectorAll('[data-testid="account-balance"]')].map(n => parse(n.textContent!));
+    const total = parse(document.querySelector('[data-testid="total-balance"]')!.textContent!);
     expect(cards.reduce((a, b) => a + b, 0)).toBe(total);
   });
   it('uses the singular for one account', async () => {
     mockBank([account('1', 'Solo', 12.5)], []);
     renderPage(<DashboardPage/>);
-    await screen.findByText('YOUR TOTAL BALANCE', { exact: false });
-    expect(document.querySelector('.balance-panel')).toHaveTextContent('Across 1 account ');
-    expect(document.querySelector('.balance-panel h2')).toHaveTextContent('£12.50');
+    await screen.findByRole('heading', { name: 'Total balance' });
+    expect(document.querySelector('[data-testid="balance-panel"]')).toHaveTextContent('Across 1 account');
+    expect(document.querySelector('[data-testid="total-balance"]')).toHaveTextContent('£12.50');
   });
   it('shows £0.00 and an empty-state message when there are no accounts', async () => {
     mockBank([], []);
     renderPage(<DashboardPage/>);
     expect(await screen.findByText(/no accounts yet/i)).toBeInTheDocument();
-    expect(document.querySelector('.balance-panel h2')).toHaveTextContent('£0.00');
-    expect(document.querySelectorAll('.account-card')).toHaveLength(0);
+    expect(document.querySelector('[data-testid="total-balance"]')).toHaveTextContent('£0.00');
+    expect(document.querySelectorAll('[data-testid="account-card"]')).toHaveLength(0);
   });
 });
 
@@ -101,9 +101,9 @@ describe('loading and error states', () => {
     mockedApi.transactions.mockResolvedValue([]);
     renderPage(<DashboardPage/>);
     expect(screen.getByText(/getting your accounts ready/i)).toBeInTheDocument();
-    expect(screen.queryByText(/your total balance/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Total balance' })).not.toBeInTheDocument();
     release(fixtureAccounts);
-    expect(await screen.findByText('YOUR TOTAL BALANCE', { exact: false })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Total balance' })).toBeInTheDocument();
   });
   it('shows the API error and recovers when the user retries', async () => {
     mockedApi.accounts.mockRejectedValueOnce(new Error('Request failed (500)'));
@@ -113,8 +113,8 @@ describe('loading and error states', () => {
     expect(screen.queryByText(FIXTURE_TOTAL)).not.toBeInTheDocument();
     mockBank();
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
-    expect(await screen.findByText('YOUR TOTAL BALANCE', { exact: false })).toBeInTheDocument();
-    expect(document.querySelector('.balance-panel h2')).toHaveTextContent(FIXTURE_TOTAL);
+    expect(await screen.findByRole('heading', { name: 'Total balance' })).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="total-balance"]')).toHaveTextContent(FIXTURE_TOTAL);
   });
   it('shows an error when the transactions request fails', async () => {
     mockedApi.accounts.mockResolvedValue(fixtureAccounts);

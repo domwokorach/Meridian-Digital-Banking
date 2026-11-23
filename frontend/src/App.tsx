@@ -9,6 +9,11 @@ import AccountsPage from './pages/AccountsPage';
 import TransferPage from './pages/TransferPage';
 import StatementsPage from './pages/StatementsPage';
 import SettingsPage from './pages/SettingsPage';
+import CardsPage from './pages/CardsPage';
+import SavingsPage from './pages/SavingsPage';
+import NotificationsPage from './pages/NotificationsPage';
+import ProductsPage from './pages/ProductsPage';
+import SupportPage from './pages/SupportPage';
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   return session ? <>{children}</> : <Navigate to="/login" replace/>;
@@ -24,6 +29,11 @@ export default function App() {
       <Route path="transfer" element={<TransferPage/>}/>
       <Route path="statements" element={<StatementsPage/>}/>
       <Route path="settings" element={<SettingsPage/>}/>
+      <Route path="cards" element={<CardsPage/>}/>
+      <Route path="savings" element={<SavingsPage/>}/>
+      <Route path="notifications" element={<NotificationsPage/>}/>
+      <Route path="products" element={<ProductsPage/>}/>
+      <Route path="support" element={<SupportPage/>}/>
     </Route>
     <Route path="*" element={<Navigate to="/" replace/>}/>
   </Routes>;

@@ -33,7 +33,7 @@ describe('automated accessibility checks (axe-core)', () => {
   it('dashboard has no detectable violations once loaded', async () => {
     mockBank();
     const { container } = renderPage(<DashboardPage/>);
-    await screen.findByText('YOUR TOTAL BALANCE', { exact: false });
+    await screen.findByRole('heading', { name: 'Total balance' });
     expect(await axe(container, options)).toHaveNoViolations();
   });
   it('transfer form has no detectable violations', async () => {

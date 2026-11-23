@@ -36,3 +36,6 @@ afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
 });
+
+// jsdom has no PointerEvent; Base UI's switch and menu primitives construct one when clicked.
+if (!('PointerEvent' in window)) Object.defineProperty(window, 'PointerEvent', { value: class PointerEvent extends MouseEvent {}, configurable: true });
